@@ -1,12 +1,11 @@
 terraform {
   required_version = ">= 1.5.0"
   backend "s3" {
-    # <<< Reemplaza con los outputs de bootstrap: bucket y dynamodb_table >>>
-    bucket         = "REPLACE_ME_BUCKET"
+    bucket         = "infra-stock-ahora-tfstate-c6058f0d"
     key            = "infra/terraform.tfstate"
-    region         = "REPLACE_ME_REGION"
-    dynamodb_table = "REPLACE_ME_TABLE"
-    encrypt        = true
+    region         = "us-east-2"
+    dynamodb_table = "infra-stock-ahora-tf-lock"
+    encrypt        = false
   }
 
   required_providers {
@@ -15,7 +14,7 @@ terraform {
       version = "~> 5.0"
     }
     random = {
-      source = "hashicorp/random"
+      source  = "hashicorp/random"
       version = "~> 3.5"
     }
   }
