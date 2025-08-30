@@ -1,6 +1,7 @@
 
 module "vpc" {
   source = "../submodules/vpc"
+  name = var.project_name
 
   # deja la VPC como ya está creada:
   vpc_cidr = "10.20.0.0/16"

@@ -23,4 +23,5 @@ module "ecs" {
 
   notification_image = "nginx:latest"
   notification_port = 8084
+  task_app_arn       = module.task_app.task_app_arn
 }

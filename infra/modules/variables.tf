@@ -1,6 +1,6 @@
 variable "project_name" {
   type        = string
-  default     = "stock-ahora"
+  default     = "true-stock"
   description = "name of project"
 }
 
@@ -18,5 +18,5 @@ variable "aws_region" {
 
 variable "aws_profile" {
   type    = string
-  default = null
+  default = "terraform-user-2"
 }
