@@ -57,3 +57,8 @@ variable "db_port" {
   type    = number
   default = 5432
 }
+
+variable "name" {
+  type  = string
+  default = ""
+}

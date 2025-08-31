@@ -1,18 +1,15 @@
-locals {
-  name = "stockahora"
-}
 
 #------------------ VPC + IGW ------------------
 resource "aws_vpc" "this" {
   cidr_block           = var.vpc_cidr
   enable_dns_support   = true
   enable_dns_hostnames = true
-  tags = { Name = "${local.name}-vpc" }
+  tags = { Name = "${var.name}-vpc" }
 }
 
 resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.this.id
-  tags   = { Name = "${local.name}-igw" }
+  tags   = { Name = "${var.name}-igw" }
 }
 
 #------------------ SUBNETS ------------------
@@ -28,7 +25,7 @@ resource "aws_subnet" "public" {
   availability_zone       = each.key
   map_public_ip_on_launch = true
   tags = {
-    Name = "${local.name}-public-${each.key}"
+    Name = "${var.name}-public-${each.key}"
     Tier = "public"
   }
 }
@@ -39,7 +36,7 @@ resource "aws_subnet" "private_app" {
   cidr_block        = var.private_app_subnets[local.az_index[each.key]]
   availability_zone = each.key
   tags = {
-    Name = "${local.name}-private-app-${each.key}"
+    Name = "${var.name}-private-app-${each.key}"
     Tier = "private-app"
   }
 }
@@ -50,7 +47,7 @@ resource "aws_subnet" "private_data" {
   cidr_block        = var.private_data_subnets[local.az_index[each.key]]
   availability_zone = each.key
   tags = {
-    Name = "${local.name}-private-data-${each.key}"
+    Name = "${var.name}-private-data-${each.key}"
     Tier = "private-data"
   }
 }
@@ -59,7 +56,7 @@ resource "aws_subnet" "private_data" {
 # Pública: 0.0.0.0/0 -> IGW
 resource "aws_route_table" "public" {
   vpc_id = aws_vpc.this.id
-  tags   = { Name = "${local.name}-rt-public" }
+  tags   = { Name = "${var.name}-rt-public" }
 }
 
 resource "aws_route" "public_igw" {
@@ -78,14 +75,14 @@ resource "aws_route_table_association" "public_assoc" {
 resource "aws_eip" "nat" {
   for_each = var.nat_per_az ? aws_subnet.public : { first = values(aws_subnet.public)[0] }
   domain   = "vpc"
-  tags     = { Name = "${local.name}-eip-nat-${try(each.key, "a")}" }
+  tags     = { Name = "${var.name}-eip-nat-${try(each.key, "a")}" }
 }
 
 resource "aws_nat_gateway" "nat" {
   for_each      = var.nat_per_az ? aws_subnet.public : { first = values(aws_subnet.public)[0] }
   subnet_id     = try(each.value.id, each.value.id)
   allocation_id = aws_eip.nat[each.key].id
-  tags          = { Name = "${local.name}-nat-${try(each.key, "a")}" }
+  tags          = { Name = "${var.name}-nat-${try(each.key, "a")}" }
   depends_on    = [aws_internet_gateway.igw]
 }
 
@@ -93,7 +90,7 @@ resource "aws_nat_gateway" "nat" {
 resource "aws_route_table" "private_app" {
   for_each = aws_subnet.private_app
   vpc_id   = aws_vpc.this.id
-  tags     = { Name = "${local.name}-rt-private-app-${each.key}" }
+  tags     = { Name = "${var.name}-rt-private-app-${each.key}" }
 }
 
 resource "aws_route" "private_app_nat" {
@@ -113,7 +110,7 @@ resource "aws_route_table_association" "private_app_assoc" {
 resource "aws_route_table" "private_data" {
   for_each = aws_subnet.private_data
   vpc_id   = aws_vpc.this.id
-  tags     = { Name = "${local.name}-rt-private-data-${each.key}" }
+  tags     = { Name = "${var.name}-rt-private-data-${each.key}" }
 }
 
 resource "aws_route_table_association" "private_data_assoc" {
@@ -132,7 +129,7 @@ resource "aws_vpc_endpoint" "s3" {
     [for rt in aws_route_table.private_app  : rt.id],
     [for rt in aws_route_table.private_data : rt.id]
   )
-  tags = { Name = "${local.name}-vpce-s3" }
+  tags = { Name = "${var.name}-vpce-s3" }
 }
 
 # Interface endpoints para servicios usados por contenedores/SageMaker/Logs/etc.
@@ -144,13 +141,13 @@ resource "aws_vpc_endpoint" "interface" {
   subnet_ids        = [for s in aws_subnet.private_app : s.id] # en capa app
   security_group_ids = [aws_security_group.endpoints.id]
   private_dns_enabled = true
-  tags = { Name = "${local.name}-vpce-${each.key}" }
+  tags = { Name = "${var.name}-vpce-${each.key}" }
 }
 
 #------------------ SECURITY GROUPS (base) ------------------
 # ALB público
 resource "aws_security_group" "alb" {
-  name        = "${local.name}-sg-alb"
+  name        = "${var.name}-sg-alb"
   description = "ALB publico"
   vpc_id      = aws_vpc.this.id
 
@@ -177,12 +174,12 @@ resource "aws_security_group" "alb" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = { Name = "${local.name}-sg-alb" }
+  tags = { Name = "${var.name}-sg-alb" }
 }
 
 # Apps privadas (ECS on EC2/EKS/EC2) – recibe tráfico solo desde el ALB
 resource "aws_security_group" "app" {
-  name        = "${local.name}-sg-app"
+  name        = "${var.name}-sg-app"
   description = "Trafico desde ALB a aplicaciones"
   vpc_id      = aws_vpc.this.id
 
@@ -204,12 +201,12 @@ resource "aws_security_group" "app" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = { Name = "${local.name}-sg-app" }
+  tags = { Name = "${var.name}-sg-app" }
 }
 
 # Base de datos aislada – solo desde capa app
 resource "aws_security_group" "db" {
-  name        = "${local.name}-sg-db"
+  name        = "${var.name}-sg-db"
   description = "DB solo desde capa app"
   vpc_id      = aws_vpc.this.id
 
@@ -228,12 +225,12 @@ resource "aws_security_group" "db" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = { Name = "${local.name}-sg-db" }
+  tags = { Name = "${var.name}-sg-db" }
 }
 
 # SG para endpoints interface (permite salidas desde app)
 resource "aws_security_group" "endpoints" {
-  name        = "${local.name}-sg-endpoints"
+  name        = "${var.name}-sg-endpoints"
   description = "Permitir trafico desde apps hacia endpoints interface"
   vpc_id      = aws_vpc.this.id
 
@@ -251,29 +248,6 @@ resource "aws_security_group" "endpoints" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = { Name = "${local.name}-sg-endpoints" }
+  tags = { Name = "${var.name}-sg-endpoints" }
 }
 
-# (Opcional) SG para SageMaker endpoint/notebook en subred privada-app
-resource "aws_security_group" "sagemaker" {
-  name        = "${local.name}-sg-sagemaker"
-  description = "SageMaker dentro de la VPC"
-  vpc_id      = aws_vpc.this.id
-
-  ingress {
-    description     = "Invocacion desde apps"
-    from_port       = 443
-    to_port         = 443
-    protocol        = "tcp"
-    security_groups = [aws_security_group.app.id]
-  }
-
-  egress {
-    from_port = 0
-    to_port = 0
-    protocol = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = { Name = "${local.name}-sg-sagemaker" }
-}

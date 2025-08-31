@@ -13,10 +13,10 @@ esto quiere decir que para ejecutar los modules de vpc por ejemplo es necesario 
 
 ## autorización
 
-Esta infraestructura tiene un backend que utiliza dynamoDB para bloquera acciones cuando se estan realizando ademas de un S3 que es donde se almacenan los cambios relacionados con la infra. 
+Esta infraestructura tiene un backend que utiliza dynamoDB para bloquear acciones cuando se estan realizando ademas de un S3 que es donde se almacenan los cambios relacionados con la infra. 
 
 Esto es principalmente para que se pueda ejecutar desde cualquier computador
-lo que si es necesario iniciar secion con el usuario que tiene los permisos para levantar servicios de aws 
+lo que si es necesario iniciar sesión con el usuario que tiene los permisos para levantar servicios de aws 
 es necesario agregarlo de esta manera para que te permita utilizar sus credenciales (previamente tienes que haber iniciado secion con las credenciales con el cliente de aws v2).
 
 ```bash
@@ -51,6 +51,48 @@ done estan los resourse, considerar que los modulos tienen el path donde esta la
 ## Servicios actuales
 
 1. cloud-front
-    - URL: https://d1m7sx3h5fgsnc.cloudfront.net
+    - URL: https://d11g8rxsz1yv0r.cloudfront.net/
 
 
+## envs para qe corra el terraform
+
+```bash
+
+$env:AWS_PROFILE="terraform-user-2
+
+$env:AWS_REGION="us-east-2"
+
+```
+
+
+## Arbol de dependencias
+
+Este árbol muestra el orden de ejecución de los servicios de aws para su correcta implementación en nuesto único ambiente. 
+
+<img src="arbol%20de%20dependencias%20terraform.drawio.png" alt="Logo" width="600"/>
+
+
+Primeros módulos:
+
+- s3 docs
+- vpc
+- s3-static-site
+- ecr
+
+Segundos módulos:
+
+-task app
+-cloudfront-static-site
+-aim-ecr
+
+
+Terceros módulos:
+
+- secret-app
+- ecs
+- db-main
+- ec2-rabbitMQ
+
+Cuarto Modulo:
+
+- api-cliente

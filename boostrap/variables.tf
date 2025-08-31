@@ -1,7 +1,7 @@
 variable "project_name" {
   description = "Short name for tags and backend resources"
   type        = string
-  default     = "infra-stock-ahora"
+  default     = "infra-true-stock"
 }
 
 variable "aws_region" {
@@ -11,5 +11,5 @@ variable "aws_region" {
 
 variable "aws_profile" {
   type    = string
-  default = null
+  default = "terraform-user-2"
 }

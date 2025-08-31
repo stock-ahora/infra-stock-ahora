@@ -16,34 +16,34 @@ resource "aws_security_group" "ecs" {
 
   # Permite cada puerto desde las subredes privadas (donde estara NLB/VPC Link)
   ingress {
-    from_port = var.movement_port
-    to_port = var.movement_port
-    protocol = "tcp"
+    from_port   = var.movement_port
+    to_port     = var.movement_port
+    protocol    = "tcp"
     cidr_blocks = var.private_app_subnet_cidrs
   }
   ingress {
-    from_port = var.stock_port
-    to_port = var.stock_port
-    protocol = "tcp"
+    from_port   = var.stock_port
+    to_port     = var.stock_port
+    protocol    = "tcp"
     cidr_blocks = var.private_app_subnet_cidrs
   }
   ingress {
-    from_port = var.client_port
-    to_port = var.client_port
-    protocol = "tcp"
+    from_port   = var.client_port
+    to_port     = var.client_port
+    protocol    = "tcp"
     cidr_blocks = var.private_app_subnet_cidrs
   }
   ingress {
-    from_port = var.notification_port
-    to_port = var.notification_port
-    protocol = "tcp"
+    from_port   = var.notification_port
+    to_port     = var.notification_port
+    protocol    = "tcp"
     cidr_blocks = var.private_app_subnet_cidrs
   }
 
-  egress  {
-    from_port = 0
-    to_port = 0
-    protocol = "-1"
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   } # p/ endpoints VPC (ECR/Logs/etc.)
   tags = {
@@ -77,11 +77,12 @@ resource "aws_lb_target_group" "api" {
   port        = each.value
   protocol    = "TCP"
   vpc_id      = var.vpc_id
-  target_type = "instance"
+  target_type = "ip"
 
   health_check {
-    protocol = "TCP"
-    port     = each.value
+    protocol = "HTTP"
+    port     = "traffic-port"
+    path     = "/health"
   }
 }
 
@@ -101,7 +102,7 @@ resource "aws_lb_listener" "api" {
 resource "aws_ecs_cluster" "this" {
   name = "${var.name}-cluster"
   setting {
-    name = "containerInsights"
+    name  = "containerInsights"
     value = "disabled"
   }
 }
@@ -111,9 +112,9 @@ resource "aws_iam_role" "ecs_instance_role" {
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
     Statement = [{
-      Effect = "Allow",
+      Effect    = "Allow",
       Principal = { Service = "ec2.amazonaws.com" },
-      Action = "sts:AssumeRole"
+      Action    = "sts:AssumeRole"
     }]
   })
 }
@@ -130,8 +131,8 @@ resource "aws_iam_instance_profile" "ecs" {
 
 # --------- Launch Templates (On-Demand y Spot) ----------
 resource "aws_launch_template" "ecs_od" {
-  name_prefix   = "${var.name}-ecs-od-"
-  image_id      = local.ecs_ami_id
+  name_prefix = "${var.name}-ecs-od-"
+  image_id    = local.ecs_ami_id
 
   iam_instance_profile { name = aws_iam_instance_profile.ecs.name }
 
@@ -148,13 +149,13 @@ resource "aws_launch_template" "ecs_od" {
 
   tag_specifications {
     resource_type = "instance"
-    tags = { Name = "${var.name}-ecs-od" }
+    tags          = { Name = "${var.name}-ecs-od" }
   }
 }
 
 resource "aws_launch_template" "ecs_spot" {
-  name_prefix   = "${var.name}-ecs-spot-"
-  image_id      = local.ecs_ami_id
+  name_prefix = "${var.name}-ecs-spot-"
+  image_id    = local.ecs_ami_id
 
   iam_instance_profile { name = aws_iam_instance_profile.ecs.name }
 
@@ -171,7 +172,7 @@ resource "aws_launch_template" "ecs_spot" {
 
   tag_specifications {
     resource_type = "instance"
-    tags = { Name = "${var.name}-ecs-spot" }
+    tags          = { Name = "${var.name}-ecs-spot" }
   }
 }
 
@@ -206,8 +207,8 @@ resource "aws_autoscaling_group" "ecs_od" {
   }
 
   tag {
-    key = "Name"
-    value = "${var.name}-ecs-od"
+    key                 = "Name"
+    value               = "${var.name}-ecs-od"
     propagate_at_launch = true
   }
 }
@@ -245,8 +246,8 @@ resource "aws_autoscaling_group" "ecs_spot" {
   }
 
   tag {
-    key = "Name"
-    value = "${var.name}-ecs-spot"
+    key                 = "Name"
+    value               = "${var.name}-ecs-spot"
     propagate_at_launch = true
   }
 }
@@ -258,8 +259,8 @@ resource "aws_ecs_capacity_provider" "od" {
     auto_scaling_group_arn         = aws_autoscaling_group.ecs_od.arn
     managed_termination_protection = "DISABLED"
     managed_scaling {
-      status                    = "ENABLED"   # <- habilita scaling automático
-      target_capacity           = 100         # <- % de utilización deseada
+      status                    = "ENABLED" # <- habilita scaling automático
+      target_capacity           = 100       # <- % de utilización deseada
       minimum_scaling_step_size = 1
       maximum_scaling_step_size = 2
     }
@@ -286,9 +287,9 @@ resource "aws_iam_role" "task_exec" {
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
     Statement = [{
-      Effect = "Allow",
+      Effect    = "Allow",
       Principal = { Service = "ecs-tasks.amazonaws.com" },
-      Action = "sts:AssumeRole"
+      Action    = "sts:AssumeRole"
     }]
   })
 }
@@ -327,7 +328,7 @@ locals {
       image    = var.notification_image
       port     = var.notification_port
       tg_arn   = aws_lb_target_group.api["notification"].arn
-      cp       = "spot"   # ← esta va a Spot
+      cp       = "spot" # ← esta va a Spot
     }
   }
 }
@@ -341,29 +342,20 @@ resource "aws_cloudwatch_log_group" "logs" {
 resource "aws_ecs_task_definition" "td" {
   for_each                 = local.services
   family                   = "${var.name}-${each.value.svc_name}"
-  network_mode             = "bridge"
+  network_mode             = "awsvpc"
   requires_compatibilities = ["EC2"]
-  cpu                      = "128"
-  memory                   = "256"
-  execution_role_arn       = aws_iam_role.task_exec.arn
+
+  task_role_arn      = var.task_app_arn
+  execution_role_arn = aws_iam_role.task_exec.arn
 
   container_definitions = jsonencode([{
-    name      = each.value.svc_name
-    image     = each.value.image
-    essential = true
+    name  = each.value.svc_name
+    image = each.value.image
     portMappings = [{
-      containerPort = 80,                 # puerto DENTRO del contenedor (nginx)
-      hostPort      = each.value.port,    # 8081..8084 en la instancia (bridge)
+      containerPort = each.value.port # 8081..8084
       protocol      = "tcp"
     }]
-    logConfiguration = {
-      logDriver = "awslogs",
-      options = {
-        awslogs-group         = aws_cloudwatch_log_group.logs[each.key].name,
-        awslogs-region        = var.region,
-        awslogs-stream-prefix = "ecs"
-      }
-    }
+    # (sin hostPort)
   }])
 }
 
@@ -385,9 +377,16 @@ resource "aws_ecs_service" "api" {
   }
 
   load_balancer {
-    target_group_arn = each.value.tg_arn
+    target_group_arn = aws_lb_target_group.api[each.key].arn
     container_name   = each.value.svc_name
-    container_port   = 80          # <-- debe coincidir con containerPort de la task
+    container_port   = each.value.port
+  }
+
+
+  network_configuration {
+    subnets         = var.private_app_subnet_ids
+    security_groups = [aws_security_group.ecs.id]
+    assign_public_ip = false
   }
 
   deployment_minimum_healthy_percent = 0

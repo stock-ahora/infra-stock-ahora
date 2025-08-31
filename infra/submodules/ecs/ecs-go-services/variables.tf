@@ -77,3 +77,7 @@ variable "notification_port"  {
   default = 8084
 }
 
+variable "task_app_arn" {
+  type = string
+  description = "arn of rol for s3 and textExtract"
+}
