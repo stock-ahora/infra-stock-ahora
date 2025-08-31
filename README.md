@@ -4,7 +4,7 @@ Repositorio que contiene los artefactos para levantar la infra estructura de aws
 
 ## Levantar infra
 
-para poder levantar la infra es necesario estar ubicado en el directorio **infra/modules**, una vez en esta ubicación lo ideal es lanzar los modulos separadamente
+Para poder levantar la infra es necesario estar ubicado en el directorio **infra/modules**, una vez en esta ubicación lo ideal es lanzar los modulos separadamente
 esto quiere decir que para ejecutar los modules de vpc por ejemplo es necesario el siguiente comando 
 
 ```bash
@@ -22,17 +22,6 @@ es necesario agregarlo de esta manera para que te permita utilizar sus credencia
 ```bash
 $aws_profile = "terraform-user"
 ```
-
-
-## Orden de ejecucion
-
-en nuestra infra es deseado ejecutar los modulos en el siguiente orden
-
-1. vpc
-2. s3-static-site
-3. cloudfront-static-site
-4. ecs
-5. api-client-api
 
 ### scipt para subir servicios
 
