@@ -3,25 +3,24 @@ name: Terraform CI/CD
 on:
   push:
     branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
-  workflow_dispatch:
 
 permissions:
-  id-token: write
   contents: read
+  id-token: write
 
 jobs:
-  deploy:
+  plan:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::859551916894:role/terraform-pipelines
-          aws-region: us-east-2
+          aws-region: us-east-1
+          role-session-name: tf-gha-plan
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -31,6 +30,44 @@ jobs:
       - name: Terraform Init
         run: terraform -chdir=infra/modules init -input=false
 
-      - name: Terraform Plan
-        run: terraform -chdir=infra/modules plan -input=false
+      - name: Terraform Plan (create planfile)
+        run: terraform -chdir=infra/modules plan -input=false -out=tfplan
 
+      - name: Upload plan artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan
+          path: infra/modules/tfplan
+          if-no-files-found: error
+
+  apply:
+    needs: plan
+    runs-on: ubuntu-latest
+    environment: prod
+    steps:
+      - uses: actions/checkout@v4
+
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::859551916894:role/terraform-pipelines
+          aws-region: us-east-1
+          role-session-name: tf-gha-apply
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.5
+
+      - name: Terraform Init (same backend)
+        run: terraform -chdir=infra/modules init -input=false
+
+      - name: Download plan artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: tfplan
+          path: infra/modules
+
+      - name: Terraform Apply (requires approved environment)
+        run: terraform -chdir=infra/modules plan -input=false -auto-approve tfplan
