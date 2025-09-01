@@ -34,10 +34,10 @@ jobs:
         run: terraform -chdir=infra/modules init -input=false
 
       - name: Terraform Plan
-        run: terraform plan -out=tfplan
+        run: terraform -chdir=infra/modules plan -out=tfplan
 
       - name: Terraform Apply
-        run: terraform apply -auto-approve tfplan
+        run: terraform -chdir=infra/modules apply -auto-approve tfplan
 
 
 ## falta configurar el tema del destroy
@@ -64,4 +64,4 @@ jobs:
         run: terraform -chdir=infra/modules init -input=false
 
       - name: Terraform destroy
-        run: terraform apply -auto-approve tfplan
+        run: terraform -chdir=infra/modules destroy -auto-approve tfplan
