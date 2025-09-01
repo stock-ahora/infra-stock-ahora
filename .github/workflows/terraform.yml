@@ -11,6 +11,7 @@ permissions:
 
 jobs:
   plan:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -42,7 +43,7 @@ jobs:
           if-no-files-found: error
 
   apply:
-    needs: plan
+    if: github.ref == 'refs/heads/destroy'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
