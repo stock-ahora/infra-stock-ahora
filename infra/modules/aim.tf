@@ -3,6 +3,8 @@ module "aim-ecr" {
 
 
   ecr_repo_arns = module.ecr.ecr_repo_arns
+
+  depends_on = [module.ecr]
 }
 
 module "task_app" {
@@ -10,4 +12,6 @@ module "task_app" {
   arn-docs = module.s3-docs.arn-docs
   bucket_name = module.s3-docs.bucket-name
   name = "task_app"
+
+  depends_on = [module.s3-docs]
 }

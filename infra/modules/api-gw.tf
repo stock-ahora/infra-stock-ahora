@@ -10,4 +10,6 @@ module "client-api" {
   }
   dns_name = module.ecs.dns_name
   region   = var.aws_region
+
+  depends_on = [module.ecs]
 }

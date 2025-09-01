@@ -12,4 +12,6 @@ module "ec2-rabbitMQ" {
   subnet_id_private = module.vpc.private_app_subnet_ids[0]
   vpc_id            = module.vpc.vpc_id
 
+  depends_on = [module.vpc]
+
 }

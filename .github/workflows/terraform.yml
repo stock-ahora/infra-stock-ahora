@@ -9,6 +9,7 @@ permissions:
   contents: read
   id-token: write
 
+## falta configurar el tema del apply
 jobs:
   plan:
     if: github.ref == 'refs/heads/main'
@@ -42,6 +43,8 @@ jobs:
           path: infra/modules/tfplan
           if-no-files-found: error
 
+
+## falta configurar el tema del destroy
   apply:
     if: github.ref == 'refs/heads/destroy'
     runs-on: ubuntu-latest
@@ -63,12 +66,6 @@ jobs:
 
       - name: Terraform Init (same backend)
         run: terraform -chdir=infra/modules init -input=false
-
-      - name: Download plan artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: tfplan
-          path: infra/modules
 
       - name: Terraform Apply
         if: github.ref == 'refs/heads/main'
