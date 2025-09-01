@@ -3,7 +3,6 @@ name: Terraform CI/CD
 on:
   push:
     branches: [ "main" ]
-  workflow_dispatch:  # <- manual
 permissions:
   contents: read
   id-token: write
@@ -41,7 +40,6 @@ jobs:
           if-no-files-found: error
 
   apply:
-    if: github.event_name == 'workflow_dispatch'
     needs: plan
     runs-on: ubuntu-latest
     steps:
@@ -69,5 +67,11 @@ jobs:
           name: tfplan
           path: infra/modules
 
-      - name: Terraform Apply (requires approved environment)
+      - name: Terraform Apply
+        if: github.ref == 'refs/heads/main'
+        run: terraform -chdir=infra/modules plan
+
+      # 👉 Solo se ejecuta en destroy
+      - name: Terraform Destroy
+        if: github.ref == 'refs/heads/destroy'
         run: terraform -chdir=infra/modules plan
