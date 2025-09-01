@@ -85,3 +85,9 @@ Terceros módulos:
 Cuarto Modulo:
 
 - api-cliente
+
+
+## Ramas
+
+Este proyecto esta configurado de tal forma que cuando corres el pipeline en la rama de **main** es para levantar la infra o actualizarla en el caso de que ya se encuentre levantada
+por otro lado tenemos los la rama **destroy** la cual corre el pipeline que elimina toda la infra estructura.
