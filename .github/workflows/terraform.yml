@@ -19,7 +19,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::859551916894:role/terraform-pipelines
-          aws-region: us-east-1
+          aws-region: us-east-2
           role-session-name: tf-gha-plan
 
       - name: Setup Terraform
@@ -43,7 +43,6 @@ jobs:
   apply:
     needs: plan
     runs-on: ubuntu-latest
-    environment: prod
     steps:
       - uses: actions/checkout@v4
 
@@ -52,7 +51,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::859551916894:role/terraform-pipelines
-          aws-region: us-east-1
+          aws-region: us-east-2
           role-session-name: tf-gha-apply
 
       - name: Setup Terraform
