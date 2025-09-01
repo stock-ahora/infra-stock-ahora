@@ -228,7 +228,6 @@ resource "aws_autoscaling_group" "ecs_spot" {
         version            = "$Latest"
       }
 
-      # ✅ overrides correctos (de tu lista var.instance_type_spot)
       dynamic "override" {
         for_each = var.instance_type_spot
         content {
@@ -237,7 +236,6 @@ resource "aws_autoscaling_group" "ecs_spot" {
       }
     }
 
-    # ✅ 100% Spot
     instances_distribution {
       on_demand_base_capacity                  = 0
       on_demand_percentage_above_base_capacity = 0
@@ -344,13 +342,17 @@ resource "aws_ecs_task_definition" "td" {
   family                   = "${var.name}-${each.value.svc_name}"
   network_mode             = "awsvpc"
   requires_compatibilities = ["EC2"]
+  memory                   = 256 # hard limit (opcional)
+  cpu                      = 256
 
   task_role_arn      = var.task_app_arn
   execution_role_arn = aws_iam_role.task_exec.arn
 
   container_definitions = jsonencode([{
-    name  = each.value.svc_name
-    image = each.value.image
+    name              = each.value.svc_name
+    image             = each.value.image
+    memory            = 256
+    memoryReservation = 128
     portMappings = [{
       containerPort = each.value.port # 8081..8084
       protocol      = "tcp"
@@ -384,8 +386,8 @@ resource "aws_ecs_service" "api" {
 
 
   network_configuration {
-    subnets         = var.private_app_subnet_ids
-    security_groups = [aws_security_group.ecs.id]
+    subnets          = var.private_app_subnet_ids
+    security_groups  = [aws_security_group.ecs.id]
     assign_public_ip = false
   }
 

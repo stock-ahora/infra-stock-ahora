@@ -11,7 +11,7 @@ permissions:
 
 ## falta configurar el tema del apply
 jobs:
-  plan:
+  apply:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
@@ -33,19 +33,15 @@ jobs:
       - name: Terraform Init
         run: terraform -chdir=infra/modules init -input=false
 
-      - name: Terraform Plan (create planfile)
-        run: terraform -chdir=infra/modules plan -input=false -out=tfplan
+      - name: Terraform Plan
+        run: terraform plan -out=tfplan
 
-      - name: Upload plan artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: tfplan
-          path: infra/modules/tfplan
-          if-no-files-found: error
+      - name: Terraform Apply
+        run: terraform apply -auto-approve tfplan
 
 
 ## falta configurar el tema del destroy
-  apply:
+  destroy:
     if: github.ref == 'refs/heads/destroy'
     runs-on: ubuntu-latest
     steps:
@@ -67,11 +63,5 @@ jobs:
       - name: Terraform Init (same backend)
         run: terraform -chdir=infra/modules init -input=false
 
-      - name: Terraform Apply
-        if: github.ref == 'refs/heads/main'
-        run: terraform -chdir=infra/modules plan
-
-      # 👉 Solo se ejecuta en destroy
-      - name: Terraform Destroy
-        if: github.ref == 'refs/heads/destroy'
-        run: terraform -chdir=infra/modules plan
+      - name: Terraform destroy
+        run: terraform apply -auto-approve tfplan

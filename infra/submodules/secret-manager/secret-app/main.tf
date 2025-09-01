@@ -1,7 +1,11 @@
+resource "random_id" "suffix" {
+  byte_length = 4
+}
+
 resource "aws_secretsmanager_secret" "app" {
-  name                    = "${var.name}-true-stock"
+  name                    = "${var.name}-true-stock-${random_id.suffix.hex}"
   description             = "Credenciales DB para ${var.name}"
-  recovery_window_in_days = 7
+  recovery_window_in_days = 0
   # kms_key_id            = aws_kms_key.sm.arn # si usas KMS propio
 }
 
@@ -17,7 +21,7 @@ resource "aws_secretsmanager_secret_version" "app_v1" {
 }
 
 data "aws_secretsmanager_secret" "app" {
-  name = "${var.name}-true-stock"
+  name = "${var.name}-true-stock-${random_id.suffix.hex}"
 
   depends_on = [aws_secretsmanager_secret.app]
 }
