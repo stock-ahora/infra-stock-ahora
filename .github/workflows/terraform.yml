@@ -64,4 +64,4 @@ jobs:
         run: terraform -chdir=infra/modules init -input=false
 
       - name: Terraform destroy
-        run: terraform -chdir=infra/modules destroy -auto-approve tfplan
+        run: terraform -chdir=infra/modules destroy -auto-approve
