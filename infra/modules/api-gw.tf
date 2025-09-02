@@ -13,3 +13,13 @@ module "client-api" {
 
   depends_on = [module.ecs]
 }
+
+module "turn-activation-db-ec2" {
+  source = "../submodules/api-gw/turn-activation-db-ec2"
+  name   = "turn-activation-db-ec2"
+  region = var.aws_region
+  lambda_arn = module.lambda-active-db-service.lambda_invoke_arn
+  function_name = module.lambda-active-db-service.lambda_name
+
+  depends_on = [module.lambda-active-db-service]
+}
