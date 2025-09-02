@@ -619,18 +619,12 @@ def handler(event, context):
 }
 
 
-data "archive_file" "lambda_zip" {
-  type        = "zip"
-  source_dir  = "${path.module}/lambda_src"
-  output_path = "${path.module}/lambda_src.zip"
-}
-
 # ---------- IAM Role para Lambda ----------
 data "aws_iam_policy_document" "assume_lambda" {
   statement {
     effect = "Allow"
     principals {
-      type = "Service"
+      type        = "Service"
       identifiers = ["lambda.amazonaws.com"]
     }
     actions = ["sts:AssumeRole"]
@@ -652,8 +646,8 @@ resource "aws_iam_role_policy_attachment" "lambda_logs_attach" {
 # Permisos mínimos EC2/RDS (incluye clusters)
 data "aws_iam_policy_document" "lambda_control" {
   statement {
-    sid     = "EC2Control"
-    effect  = "Allow"
+    sid    = "EC2Control"
+    effect = "Allow"
     actions = [
       "ec2:DescribeInstances",
       "ec2:StartInstances",
@@ -684,8 +678,8 @@ data "aws_iam_policy_document" "lambda_control" {
   }
 
   statement {
-    sid     = "RDSControl"
-    effect  = "Allow"
+    sid    = "RDSControl"
+    effect = "Allow"
     actions = [
       "rds:DescribeDBInstances",
       "rds:DescribeDBClusters",
@@ -722,15 +716,15 @@ resource "aws_lambda_function" "switcher" {
   role          = aws_iam_role.lambda_role.arn
   handler       = "main.handler"
   runtime       = "python3.12"
-  filename      = data.archive_file.lambda_zip.output_path
+  filename      = "${path.module}/lambda_src.zip"
   timeout       = 60
   memory_size   = 256
 
   environment {
     variables = {
-      EC2_INSTANCE_IDS = join(",", var.ec2_instance_ids)   # opcional
-      RDS_INSTANCE_IDS = join(",", var.rds_instance_ids)   # opcional
-      TARGET_TAGS_JSON = jsonencode(var.target_tags)       # opcional
+      EC2_INSTANCE_IDS = join(",", var.ec2_instance_ids) # opcional
+      RDS_INSTANCE_IDS = join(",", var.rds_instance_ids) # opcional
+      TARGET_TAGS_JSON = jsonencode(var.target_tags)     # opcional
     }
   }
 
