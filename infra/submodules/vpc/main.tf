@@ -133,17 +133,6 @@ resource "aws_vpc_endpoint" "s3" {
 }
 
 # Interface endpoints para servicios usados por contenedores/SageMaker/Logs/etc.
-resource "aws_vpc_endpoint" "interface" {
-  for_each          = toset(var.interface_endpoints)
-  vpc_id            = aws_vpc.this.id
-  service_name      = "com.amazonaws.${var.region}.${each.key}"
-  vpc_endpoint_type = "Interface"
-  subnet_ids        = [for s in aws_subnet.private_app : s.id] # en capa app
-  security_group_ids = [aws_security_group.endpoints.id]
-  private_dns_enabled = true
-  tags = { Name = "${var.name}-vpce-${each.key}" }
-}
-
 #------------------ SECURITY GROUPS (base) ------------------
 # ALB público
 resource "aws_security_group" "alb" {
@@ -228,26 +217,4 @@ resource "aws_security_group" "db" {
   tags = { Name = "${var.name}-sg-db" }
 }
 
-# SG para endpoints interface (permite salidas desde app)
-resource "aws_security_group" "endpoints" {
-  name        = "${var.name}-sg-endpoints"
-  description = "Permitir trafico desde apps hacia endpoints interface"
-  vpc_id      = aws_vpc.this.id
-
-  ingress { # desde apps a los ENI de los endpoints
-    from_port       = 0
-    to_port         = 0
-    protocol        = "-1"
-    security_groups = [aws_security_group.app.id]
-  }
-
-  egress {
-    from_port = 0
-    to_port = 0
-    protocol = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = { Name = "${var.name}-sg-endpoints" }
-}
 

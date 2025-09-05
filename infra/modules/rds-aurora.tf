@@ -8,7 +8,7 @@ module "db-main" {
   //db_subnets  = module.vpc.private_data_subnet_ids
   db_subnets  = module.vpc.public_subnet_ids
   name        = "${var.project_name}-aurora-cluster"
-  allowed_ips = ["186.189.90.100/32"]
+  allowed_ips = ["186.189.90.236/32"]
 
   depends_on = [module.vpc]
 }

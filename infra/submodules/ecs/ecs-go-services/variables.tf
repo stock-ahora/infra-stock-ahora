@@ -11,6 +11,10 @@ variable "vpc_id"  {
   type = string
 }
 
+variable "sg_app_id" {
+  type = string
+}
+
 # Subredes privadas donde correr ECS y donde vive el NLB
 variable "private_app_subnet_ids"   {
   type = list(string)
@@ -80,4 +84,22 @@ variable "notification_port"  {
 variable "task_app_arn" {
   type = string
   description = "arn of rol for s3 and textExtract"
+}
+
+
+variable "interface_endpoints" {
+  description = "Servicios para endpoints interface"
+  type        = list(string)
+  default = [
+    "ecr.api",
+    "ecr.dkr",
+    "logs",
+    "secretsmanager",
+    "ssm",
+    "kms",
+    "sts",
+    "ecs",          # si quieres que ECS Agent hable por endpoint
+    "ecs-agent",
+    "ecs-telemetry"
+  ]
 }

@@ -2,9 +2,13 @@
 data "aws_ssm_parameter" "ecs_ami" {
   name = "/aws/service/ecs/optimized-ami/amazon-linux-2/arm64/recommended/image_id"
 }
-
 locals {
   ecs_ami_id = var.ecs_ami_id != "" ? var.ecs_ami_id : data.aws_ssm_parameter.ecs_ami.value
+}
+
+resource "aws_ecs_account_setting_default" "awsvpc_trunking" {
+  name  = "awsvpcTrunking"
+  value = "enabled"
 }
 
 # --------- SECURITY GROUPS ----------
@@ -82,7 +86,7 @@ resource "aws_lb_target_group" "api" {
   health_check {
     protocol = "HTTP"
     port     = "traffic-port"
-    path     = "/health"
+    path     = "/api/v1/health"
   }
 }
 
@@ -144,6 +148,7 @@ resource "aws_launch_template" "ecs_od" {
   user_data = base64encode(<<-EOF
               #!/bin/bash
               echo ECS_CLUSTER=${var.name}-cluster >> /etc/ecs/ecs.config
+              echo ECS_ENABLE_TASK_ENI_TRUNKING=true >> /etc/ecs/ecs.config
               EOF
   )
 
@@ -167,6 +172,7 @@ resource "aws_launch_template" "ecs_spot" {
   user_data = base64encode(<<-EOF
               #!/bin/bash
               echo ECS_CLUSTER=${var.name}-cluster >> /etc/ecs/ecs.config
+              echo ECS_ENABLE_TASK_ENI_TRUNKING=true >> /etc/ecs/ecs.config
               EOF
   )
 
@@ -179,9 +185,9 @@ resource "aws_launch_template" "ecs_spot" {
 # --------- ASGs (On-Demand y Spot) ----------
 resource "aws_autoscaling_group" "ecs_od" {
   name                = "${var.name}-ecs-asg-od"
-  max_size            = 4
-  min_size            = 1
-  desired_capacity    = 1
+  max_size            = 0
+  min_size            = 0
+  desired_capacity    = 0
   vpc_zone_identifier = var.private_app_subnet_ids
   health_check_type   = "EC2"
 
@@ -215,9 +221,9 @@ resource "aws_autoscaling_group" "ecs_od" {
 
 resource "aws_autoscaling_group" "ecs_spot" {
   name                = "${var.name}-ecs-asg-spot"
-  max_size            = 1
+  max_size            = 2
   min_size            = 0
-  desired_capacity    = 1
+  desired_capacity    = 2
   vpc_zone_identifier = var.private_app_subnet_ids
   health_check_type   = "EC2"
 
@@ -305,21 +311,22 @@ locals {
       image    = var.movement_image
       port     = var.movement_port
       tg_arn   = aws_lb_target_group.api["movement"].arn
-      cp       = "od"
+      #cp       = "od"
+      cp       = "spot"
     }
     stock = {
       svc_name = "api-stock"
       image    = var.stock_image
       port     = var.stock_port
       tg_arn   = aws_lb_target_group.api["stock"].arn
-      cp       = "od"
+      cp       = "spot"
     }
     client = {
       svc_name = "api-client"
       image    = var.client_image
       port     = var.client_port
       tg_arn   = aws_lb_target_group.api["client"].arn
-      cp       = "od"
+      cp       = "spot"
     }
     notification = {
       svc_name = "api-notification"
@@ -345,6 +352,7 @@ resource "aws_ecs_task_definition" "td" {
   memory                   = 256 # hard limit (opcional)
   cpu                      = 256
 
+
   task_role_arn      = var.task_app_arn
   execution_role_arn = aws_iam_role.task_exec.arn
 
@@ -354,10 +362,17 @@ resource "aws_ecs_task_definition" "td" {
     memory            = 256
     memoryReservation = 128
     portMappings = [{
-      containerPort = each.value.port # 8081..8084
+      containerPort = each.value.port
       protocol      = "tcp"
     }]
-    # (sin hostPort)
+    logConfiguration = {
+      logDriver = "awslogs"
+      options = {
+        awslogs-group         = "/ecs/${var.name}/${each.value.svc_name}"
+        awslogs-region        = var.region
+        awslogs-stream-prefix = "ecs"
+      }
+    }
   }])
 }
 
@@ -400,3 +415,48 @@ resource "aws_ecs_service" "api" {
 output "nlb_dns_name" {
   value = aws_lb.nlb.dns_name
 }
+
+resource "aws_vpc_endpoint" "interface" {
+  for_each          = toset(var.interface_endpoints)
+  vpc_id            = var.vpc_id
+  service_name      = "com.amazonaws.${var.region}.${each.key}"
+  vpc_endpoint_type = "Interface"
+  subnet_ids        = [for s in var.private_app_subnet_ids : s] # en capa app
+  security_group_ids = [aws_security_group.endpoints.id]
+  private_dns_enabled = true
+  tags = { Name = "${var.name}-vpce-${each.key}" }
+}
+
+
+resource "aws_security_group" "endpoints" {
+  name        = "${var.name}-sg-endpoints"
+  description = "Permitir trafico desde apps y ECS hacia endpoints interface"
+  vpc_id      = var.vpc_id
+
+  # Tráfico desde APP (ya lo tenías)
+  ingress {
+    from_port       = 0
+    to_port         = 0
+    protocol        = "-1"
+    security_groups = [var.sg_app_id]
+  }
+
+  # ➜ Agrega este para ECS
+  ingress {
+    from_port       = 0
+    to_port         = 0
+    protocol        = "-1"
+    security_groups = [aws_security_group.ecs.id]
+  }
+
+  egress {
+    from_port = 0
+    to_port   = 0
+    protocol  = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = { Name = "${var.name}-sg-endpoints" }
+}
+
+

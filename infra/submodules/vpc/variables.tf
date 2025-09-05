@@ -39,7 +39,10 @@ variable "interface_endpoints" {
     "secretsmanager",
     "ssm",
     "kms",
-    "sts"
+    "sts",
+    "ecs",          # si quieres que ECS Agent hable por endpoint
+    "ecs-agent",
+    "ecs-telemetry"
   ]
 }
 

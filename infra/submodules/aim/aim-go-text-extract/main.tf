@@ -1,9 +1,9 @@
-data "aws_iam_policy_document" "assume_role_ec2" {
+data "aws_iam_policy_document" "assume_role_ecs_tasks" {
   statement {
     effect = "Allow"
     principals {
-      type        = "Service"
-      identifiers = ["ec2.amazonaws.com"]
+      type = "Service"
+      identifiers = ["ecs-tasks.amazonaws.com"]
     }
     actions = ["sts:AssumeRole"]
   }
@@ -11,8 +11,8 @@ data "aws_iam_policy_document" "assume_role_ec2" {
 
 resource "aws_iam_role" "task_app" {
   name               = "${var.name}-textract-client-role"
-  assume_role_policy = data.aws_iam_policy_document.assume_role_ec2.json
-  description        = "Permite a la app Go invocar Textract y acceder al bucket S3 ${var.bucket_name}"
+  assume_role_policy = data.aws_iam_policy_document.assume_role_ecs_tasks.json
+  description        = "Task role para las tareas ECS (permisos de la app Go)"
 }
 
 # Permisos mínimos para:
