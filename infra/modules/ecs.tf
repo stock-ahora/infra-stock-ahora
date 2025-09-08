@@ -8,14 +8,14 @@ module "ecs" {
   vpc_id                   = module.vpc.vpc_id
   private_app_subnet_ids   = module.vpc.private_app_subnet_ids
   private_app_subnet_cidrs = module.vpc.private_app_subnet_cidrs
-  instance_type_od         = ["t4g.small"]
-  instance_type_spot       = ["t4g.small"]
+  instance_type_od         = ["t4g.small", "t4g.medium"]
+  instance_type_spot       = ["t4g.small", "t4g.medium"]
   ecs_ami_id               = ""
 
   movement_image = "859551916894.dkr.ecr.us-east-2.amazonaws.com/true-stock/api-movement:test-arm"
   movement_port  = 8081
 
-  stock_image = "859551916894.dkr.ecr.us-east-2.amazonaws.com/true-stock/api-stock:test-arm"
+  stock_image = "859551916894.dkr.ecr.us-east-2.amazonaws.com/true-stock/api-stock:test-arm-test-secret-manager6"
   stock_port  = 8082
 
   client_image = "859551916894.dkr.ecr.us-east-2.amazonaws.com/true-stock/api-client:test-arm"

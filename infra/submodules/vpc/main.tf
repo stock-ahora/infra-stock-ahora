@@ -4,6 +4,7 @@ resource "aws_vpc" "this" {
   cidr_block           = var.vpc_cidr
   enable_dns_support   = true
   enable_dns_hostnames = true
+  assign_generated_ipv6_cidr_block   = true
   tags = { Name = "${var.name}-vpc" }
 }
 
@@ -23,18 +24,28 @@ resource "aws_subnet" "public" {
   vpc_id                  = aws_vpc.this.id
   cidr_block              = var.public_subnets[local.az_index[each.key]]
   availability_zone       = each.key
-  map_public_ip_on_launch = true
+  #map_public_ip_on_launch = true
+  assign_ipv6_address_on_creation   = true
+  ipv6_cidr_block = cidrsubnet(aws_vpc.this.ipv6_cidr_block, 8, 0 + local.az_index[each.key])
   tags = {
     Name = "${var.name}-public-${each.key}"
     Tier = "public"
   }
 }
 
+resource "aws_egress_only_internet_gateway" "this" {
+  vpc_id = aws_vpc.this.id
+  tags   = { Name = "${var.name}-eoi-gw" }
+}
+
+
 resource "aws_subnet" "private_app" {
   for_each          = toset(var.azs)
   vpc_id            = aws_vpc.this.id
   cidr_block        = var.private_app_subnets[local.az_index[each.key]]
   availability_zone = each.key
+  assign_ipv6_address_on_creation   = true
+  ipv6_cidr_block = cidrsubnet(aws_vpc.this.ipv6_cidr_block, 8, 16 + local.az_index[each.key])
   tags = {
     Name = "${var.name}-private-app-${each.key}"
     Tier = "private-app"
@@ -46,6 +57,8 @@ resource "aws_subnet" "private_data" {
   vpc_id            = aws_vpc.this.id
   cidr_block        = var.private_data_subnets[local.az_index[each.key]]
   availability_zone = each.key
+  assign_ipv6_address_on_creation   = true
+  ipv6_cidr_block = cidrsubnet(aws_vpc.this.ipv6_cidr_block, 8, 32 + local.az_index[each.key])
   tags = {
     Name = "${var.name}-private-data-${each.key}"
     Tier = "private-data"
@@ -59,10 +72,23 @@ resource "aws_route_table" "public" {
   tags   = { Name = "${var.name}-rt-public" }
 }
 
-resource "aws_route" "public_igw" {
+resource "aws_route" "public_ipv4_default" {
   route_table_id         = aws_route_table.public.id
   destination_cidr_block = "0.0.0.0/0"
   gateway_id             = aws_internet_gateway.igw.id
+}
+
+resource "aws_route" "public_ipv6_default" {
+  route_table_id              = aws_route_table.public.id
+  destination_ipv6_cidr_block = "::/0"
+  gateway_id                  = aws_internet_gateway.igw.id
+}
+
+resource "aws_route" "private_data_v6_egress" {
+  for_each                     = aws_route_table.private_data
+  route_table_id               = each.value.id
+  destination_ipv6_cidr_block  = "::/0"
+  egress_only_gateway_id       = aws_egress_only_internet_gateway.this.id
 }
 
 resource "aws_route_table_association" "public_assoc" {
@@ -73,16 +99,14 @@ resource "aws_route_table_association" "public_assoc" {
 
 # NAT(s): en subred pública(s)
 resource "aws_eip" "nat" {
-  for_each = var.nat_per_az ? aws_subnet.public : { first = values(aws_subnet.public)[0] }
-  domain   = "vpc"
-  tags     = { Name = "${var.name}-eip-nat-${try(each.key, "a")}" }
+  count  = var.create_nat ? 1 : 0
+  domain = "vpc"
 }
 
 resource "aws_nat_gateway" "nat" {
-  for_each      = var.nat_per_az ? aws_subnet.public : { first = values(aws_subnet.public)[0] }
-  subnet_id     = try(each.value.id, each.value.id)
-  allocation_id = aws_eip.nat[each.key].id
-  tags          = { Name = "${var.name}-nat-${try(each.key, "a")}" }
+  count         = var.create_nat ? 1 : 0
+  subnet_id     = var.create_nat ? values(aws_subnet.public)[0].id : null
+  allocation_id = var.create_nat ? aws_eip.nat[0].id : null
   depends_on    = [aws_internet_gateway.igw]
 }
 
@@ -94,10 +118,17 @@ resource "aws_route_table" "private_app" {
 }
 
 resource "aws_route" "private_app_nat" {
-  for_each               = aws_route_table.private_app
+  for_each               = var.create_nat ? aws_route_table.private_app : {}
   route_table_id         = each.value.id
   destination_cidr_block = "0.0.0.0/0"
-  nat_gateway_id         = var.nat_per_az ? aws_nat_gateway.nat[replace(each.key, "private_app", "public")].id : values(aws_nat_gateway.nat)[0].id
+  nat_gateway_id         = aws_nat_gateway.nat[0].id
+}
+
+resource "aws_route" "private_app_v6_egress" {
+  for_each                    = aws_route_table.private_app
+  route_table_id              = each.value.id
+  destination_ipv6_cidr_block = "::/0"
+  egress_only_gateway_id      = aws_egress_only_internet_gateway.this.id
 }
 
 resource "aws_route_table_association" "private_app_assoc" {
@@ -145,7 +176,7 @@ resource "aws_security_group" "alb" {
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
   }
 
   ingress {
@@ -153,14 +184,14 @@ resource "aws_security_group" "alb" {
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
   }
 
   egress {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
   }
 
   tags = { Name = "${var.name}-sg-alb" }
@@ -187,7 +218,7 @@ resource "aws_security_group" "app" {
     from_port = 0
     to_port = 0
     protocol = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
   }
 
   tags = { Name = "${var.name}-sg-app" }
@@ -211,7 +242,7 @@ resource "aws_security_group" "db" {
     from_port = 0
     to_port = 0
     protocol = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
   }
 
   tags = { Name = "${var.name}-sg-db" }

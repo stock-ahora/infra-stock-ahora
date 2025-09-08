@@ -15,3 +15,11 @@ module "ec2-rabbitMQ" {
   depends_on = [module.vpc]
 
 }
+
+module "vpn-ec2" {
+    source = "../submodules/ec2/vpn-ec2"
+
+   aws_vpc_id = module.vpc.vpc_id
+  project_name = "vpn"
+  public_subnet_ids = module.vpc.public_subnet_ids
+}

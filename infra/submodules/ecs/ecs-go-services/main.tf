@@ -61,6 +61,7 @@ resource "aws_lb" "nlb" {
   internal           = true
   load_balancer_type = "network"
   subnets            = var.private_app_subnet_ids
+  ip_address_type = "dualstack"
   tags               = { Name = "${var.name}-nlb-int" }
 }
 
@@ -410,10 +411,6 @@ resource "aws_ecs_service" "api" {
   deployment_maximum_percent         = 200
 
   depends_on = [aws_lb_listener.api]
-}
-
-output "nlb_dns_name" {
-  value = aws_lb.nlb.dns_name
 }
 
 resource "aws_vpc_endpoint" "interface" {

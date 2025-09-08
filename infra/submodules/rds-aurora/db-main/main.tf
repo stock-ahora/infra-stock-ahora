@@ -48,11 +48,13 @@ resource "aws_db_instance" "postgres" {
   allocated_storage       = 20               # ✅ Free Tier
   max_allocated_storage   = 20
   db_name                 = "appdb"
+  network_type = "DUAL"
+  multi_az = false
   username                = var.db_username
   password                = var.db_password
   db_subnet_group_name    = aws_db_subnet_group.rds.name
   vpc_security_group_ids  = [aws_security_group.rds_sg.id]
-  publicly_accessible     = true             # ⚠️ cuidado, expone la DB (pero solo permite tu IP en el SG)
+  publicly_accessible     = false             # ⚠️ cuidado, expone la DB (pero solo permite tu IP en el SG)
   skip_final_snapshot     = true             # ⚠️ en prod pon false
   deletion_protection     = false            # ⚠️ en prod pon true
 
